@@ -1,58 +1,62 @@
 import openai
 import json
 import os
-from markdownify import markdownify as md
 
 # Set up the OpenAI API key
-openai.api_key = "YOUR_OPENAI_API_KEY"
+openai.api_key = "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"
 
-def read_large_text_file(file_path):
-    with open(file_path, 'r') as file:
-        content = file.read()
-    return content
-
-def format_response_to_markdown(response):
-    markdown_sections = []
-    
-    for message in response['choices'][0]['message']['content']:
-        if message['role'] == 'assistant':
-            section_title = md(message['content'].strip())
-            markdown_sections.append(f"## {section_title}\n")
-    return "\n".join(markdown_sections)
+def split_text_into_chunks(text, chunk_size=5000):
+    text_chunks = [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
+    return text_chunks
 
 def process_large_text_with_chatgpt(text, prompt):
+    chunks = split_text_into_chunks(text)
+    responses = []
+
+    for chunk in chunks:
+        response = openai.Completion.create(
+            engine="text-davinci-002",
+            prompt=f"{prompt}\n{chunk}",
+            max_tokens=150,
+            n=1,
+            stop=None,
+            temperature=0.25,
+        )
+        responses.append(response.choices[0].text.strip())
+
+    return "\n".join(responses)
+
+def summarize_to_bullet_points(summary, prompt):
     response = openai.Completion.create(
         engine="text-davinci-002",
-        prompt=f"{text}\n{prompt}",
-        temperature=0.5,
-        max_tokens=2048,
-        top_p=1,
-        frequency_penalty=0,
-        presence_penalty=0,
+        prompt=f"{prompt}\n{summary}",
+        max_tokens=150,
         n=1,
         stop=None,
+        temperature=0.7,
     )
-    
-    return format_response_to_markdown(response)
+    return response.choices[0].text.strip()
 
-def save_to_markdown_file(filename, content):
-    with open(filename, 'w') as file:
-        file.write(content)
+def save_output_to_markdown(output, output_file_path):
+    with open(output_file_path, "w") as f:
+        f.write(output)
 
 if __name__ == "__main__":
-    # Read the large text file
-    input_file_path = "large_text_file.txt"
-    large_text = read_large_text_file(input_file_path)
-    
-    # Set your desired prompt
-    prompt = "Summarize the text into sections and titles."
+    input_file_path = "futpal_pitch_deck_discussion_apr_23.txt"
+    prompt = "Summarise this transcript of a meeting into meeting notes. Meaning just return the main points made in the meeting related to the meeting content only, between people in a company into sections and titles."
 
-    # Process the text with ChatGPT
-    markdown_content = process_large_text_with_chatgpt(large_text, prompt)
-    
-    # Save the output to a markdown file
-    output_file_path = "output.md"
-    save_to_markdown_file(output_file_path, markdown_content)
+    with open(input_file_path, "r") as f:
+        large_text = f.read()
+
+    summary = process_large_text_with_chatgpt(large_text, prompt)
+
+    bullet_point_prompt = "Transform the following summary into a coherent list of bullet points highlighting the main points of the meeting:"
+    bullet_point_summary = summarize_to_bullet_points(summary, bullet_point_prompt)
+
+    input_file_path_list = input_file_path.split(".")
+    output_file_path = f"{input_file_path_list[0]}_summary.md"
+
+    save_output_to_markdown(bullet_point_summary, output_file_path)
 
     print(f"Output saved in {output_file_path}")
 
