@@ -3,7 +3,7 @@ import json
 import os
 
 # Set up the OpenAI API key
-openai.api_key = "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"
+openai.api_key = ""
 
 def split_text_into_chunks(text, chunk_size=5000):
     text_chunks = [text[i:i + chunk_size] for i in range(0, len(text), chunk_size)]
